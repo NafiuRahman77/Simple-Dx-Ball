@@ -1,4 +1,5 @@
 #include <SFML/Graphics.hpp>
+#include <SFML/Audio.hpp>
 #include <vector>
 #include <cstdlib>
 #include <ctime>
@@ -16,8 +17,8 @@ const int PADDLE_HEIGHT = 20;
 const int BALL_RADIUS = 10;
 const int BRICK_WIDTH = 60;
 const int BRICK_HEIGHT = 20;
-const int BRICKS_PER_ROW = 1;
-const int BRICK_ROWS = 1;
+const int BRICKS_PER_ROW = 10;
+const int BRICK_ROWS = 5;
 const int MAX_LIVES = 3;
 const float BONUS_FALL_SPEED = 0.1f;
 const float BONUS_DURATION = 200.0f;
@@ -32,7 +33,8 @@ enum class GameState
     Playing,
     Playing2,
     GameOver,
-    YouWin
+    YouWin,
+    HighScore
 };
 
 enum class BonusType
@@ -396,6 +398,13 @@ int main()
     homeTextExit.setString("Exit");
     homeTextExit.setPosition(WINDOW_WIDTH / 2 - homeTextExit.getLocalBounds().width / 2, WINDOW_HEIGHT / 2 + 50);
 
+    sf::Text homeTextHighScore;
+    homeTextHighScore.setFont(font);
+    homeTextHighScore.setCharacterSize(36);
+    homeTextHighScore.setFillColor(sf::Color::White);
+    homeTextHighScore.setString("High Scores");
+    homeTextHighScore.setPosition(WINDOW_WIDTH / 2 - homeTextHighScore.getLocalBounds().width / 2, WINDOW_HEIGHT / 2 + 150);
+
     sf::Text gameOverTextRestart;
     gameOverTextRestart.setFont(font);
     gameOverTextRestart.setCharacterSize(36);
@@ -444,6 +453,21 @@ int main()
     scoreText.setFillColor(sf::Color::White);
     scoreText.setPosition(WINDOW_WIDTH - 100, 10);
 
+    sf::Text highScoreTextExit;
+    highScoreTextExit.setFont(font);
+    highScoreTextExit.setCharacterSize(36);
+    highScoreTextExit.setFillColor(sf::Color::White);
+    highScoreTextExit.setString("Exit");
+
+    highScoreTextExit.setPosition(WINDOW_WIDTH / 2 - highScoreTextExit.getLocalBounds().width / 2, WINDOW_HEIGHT / 2 + 250);
+
+    sf::Text highScoreText;
+    highScoreText.setFont(font);
+    highScoreText.setCharacterSize(30);
+    highScoreText.setFillColor(sf::Color::White);
+
+    highScoreText.setPosition(WINDOW_WIDTH / 2 - highScoreText.getLocalBounds().width / 2 - 50, WINDOW_HEIGHT / 2 - highScoreText.getLocalBounds().height / 2 - 100);
+
     Paddle paddle(WINDOW_WIDTH / 2 - PADDLE_WIDTH / 2, WINDOW_HEIGHT - PADDLE_HEIGHT - 10);
     Ball ball(WINDOW_WIDTH / 2 - BALL_RADIUS, WINDOW_HEIGHT / 2 - BALL_RADIUS);
 
@@ -454,6 +478,10 @@ int main()
     std::vector<Bonus> bonuses;
 
     refillBricks(bricks, bonuses);
+
+    sf::Music music;
+    if (!music.openFromFile("music/hit.ogg"))
+        return -1; // error
 
     while (window.isOpen())
     {
@@ -534,12 +562,28 @@ int main()
                             }
                         }
                     }
+                    else if (isMouseOverText(homeTextHighScore, window))
+                    {
+                        gameState = GameState::HighScore;
+                    }
                     else if (isMouseOverText(homeTextExit, window))
                     {
                         window.close();
                     }
                 }
             }
+
+            else if (gameState == GameState::HighScore)
+            {
+                if (event.type == sf::Event::MouseButtonPressed)
+                {
+                    if (isMouseOverText(highScoreTextExit, window))
+                    {
+                        gameState = GameState::HomeScreen;
+                    }
+                }
+            }
+
             else if (gameState == GameState::GameOver)
             {
                 if (event.type == sf::Event::MouseButtonPressed)
@@ -617,6 +661,8 @@ int main()
                         bonuses.emplace_back(it->getBounds().left + BRICK_WIDTH / 2, it->getBounds().top + BRICK_HEIGHT / 2, it->getBonusType());
                     }
                     it = bricks.erase(it);
+
+                    music.play();
                     score++;
                 }
                 else
@@ -867,9 +913,11 @@ int main()
         {
             homeTextStart.setFillColor(isMouseOverText(homeTextStart, window) ? sf::Color::Yellow : sf::Color::White);
             homeTextExit.setFillColor(isMouseOverText(homeTextExit, window) ? sf::Color::Yellow : sf::Color::White);
+            homeTextHighScore.setFillColor(isMouseOverText(homeTextHighScore, window) ? sf::Color::Yellow : sf::Color::White);
             window.clear();
             window.draw(homeTextStart);
             window.draw(homeTextExit);
+            window.draw(homeTextHighScore);
             window.display();
         }
         else if (gameState == GameState::GameOver)
@@ -897,6 +945,30 @@ int main()
             window.clear();
             window.draw(nameText);
             window.draw(youWinText);
+            window.display();
+        }
+        else if (gameState == GameState::HighScore)
+        {
+            if (event.type == sf::Event::MouseButtonPressed)
+            {
+                if (isMouseOverText(homeTextExit, window))
+                {
+                    window.close();
+                }
+            }
+
+            std::vector<Score> high_scores = loadScores();
+            std::string high_score_text = "High Scores\n";
+            for (auto s : high_scores)
+            {
+                high_score_text += s.name + " " + std::to_string(s.score) + "\n";
+            }
+            highScoreTextExit.setFillColor(isMouseOverText(highScoreTextExit, window) ? sf::Color::Yellow : sf::Color::White);
+            highScoreText.setString(high_score_text);
+            window.clear();
+            window.draw(highScoreText);
+            window.draw(highScoreTextExit);
+
             window.display();
         }
     }
